@@ -94,11 +94,23 @@
     </section>
   </main>
 
-  <script>
-    // Supabase क्रेडेंशियल्स
+    <script>
+    // 1. अपनी क्रेडेंशियल्स डालें
     const SUPABASE_URL = "https://wusdenfidflzpekvncck.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_yiAAP0mVLWeQb00Evr0XzA_Tj8mWSIp";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let supabaseClient = null;
+
+    // Supabase लोड करने की पुष्टि
+    try {
+      if (window.supabase) {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      } else {
+        alert("Supabase लाइब्रेरी लोड नहीं हुई। कृपया इंटरनेट कनेक्शन चेक करें।");
+      }
+    } catch (err) {
+      alert("Supabase इनिशियलाइज़ एरर: " + err.message);
+    }
 
     let isSignUp = false;
     let currentUser = null;
@@ -113,53 +125,92 @@
     }
 
     async function handleAuthAction() {
+      const submitBtn = document.getElementById('authSubmitBtn');
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
 
-      if (!email || !password) {
-        alert('कृपया ईमेल और पासवर्ड भरें');
+      if (!supabaseClient) {
+        alert("डेटाबेस कनेक्ट नहीं है। कृपया Keys चेक करें।");
         return;
       }
 
-      if (isSignUp) {
-        const fullName = document.getElementById('fullName').value.trim();
-        const role = document.getElementById('userRole').value;
+      if (!email || !password) {
+        alert('कृपया ईमेल और पासवर्ड दोनों भरें।');
+        return;
+      }
 
-        if (!fullName) {
-          alert('कृपया अपना पूरा नाम लिखें');
-          return;
-        }
+      if (password.length < 6) {
+        alert('पासवर्ड कम से कम 6 अक्षरों का होना चाहिए।');
+        return;
+      }
 
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) {
-          alert('Sign Up एरर: ' + error.message);
-          return;
-        }
+      // बटन को लोडिंग स्टेट में डालें
+      submitBtn.disabled = true;
+      submitBtn.innerText = "कृपया प्रतीक्षा करें...";
 
-        if (data?.user) {
-          await supabase.from('profiles').insert([
-            { id: data.user.id, full_name: fullName, role: role, pricing: role === 'creator' ? 500 : 0 }
-          ]);
-          alert('सफलतापूर्वक अकाउंट बन गया!');
-          checkSession();
+      try {
+        if (isSignUp) {
+          const fullName = document.getElementById('fullName').value.trim();
+          const role = document.getElementById('userRole').value;
+
+          if (!fullName) {
+            alert('कृपया अपना पूरा नाम लिखें।');
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Sign Up";
+            return;
+          }
+
+          const { data, error } = await supabaseClient.auth.signUp({ 
+            email: email, 
+            password: password 
+          });
+
+          if (error) throw error;
+
+          if (data?.user) {
+            const { error: profileError } = await supabaseClient.from('profiles').insert([
+              { 
+                id: data.user.id, 
+                full_name: fullName, 
+                role: role, 
+                pricing: role === 'creator' ? 500 : 0 
+              }
+            ]);
+
+            if (profileError) {
+              console.error(profileError);
+            }
+
+            alert('अकाउंट सफलतापूर्वक बन गया!');
+            await checkSession();
+          }
+        } else {
+          const { data, error } = await supabaseClient.auth.signInWithPassword({ 
+            email: email, 
+            password: password 
+          });
+
+          if (error) throw error;
+          await checkSession();
         }
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-          alert('Login एरर: ' + error.message);
-          return;
-        }
-        checkSession();
+      } catch (err) {
+        alert('एरर: ' + (err.error_description || err.message));
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = isSignUp ? 'Sign Up' : 'Login';
       }
     }
 
     async function handleLogout() {
-      await supabase.auth.signOut();
+      if (!supabaseClient) return;
+      await supabaseClient.auth.signOut();
       checkSession();
     }
 
     async function checkSession() {
-      const { data: { session } } = await supabase.auth.getSession();
+      if (!supabaseClient) return;
+
+      const { data: { session } } = await supabaseClient.auth.getSession();
 
       const authSection = document.getElementById('authSection');
       const appDashboard = document.getElementById('appDashboard');
@@ -171,7 +222,7 @@
         appDashboard.classList.remove('hidden');
         logoutBtn.classList.remove('hidden');
 
-        const { data: profile } = await supabase
+        const { data: profile } = await supabaseClient
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
@@ -194,8 +245,9 @@
     }
 
     async function loadCreators() {
+      if (!supabaseClient) return;
       const listContainer = document.getElementById('creatorsList');
-      const { data: creators } = await supabase.from('profiles').select('*').eq('role', 'creator');
+      const { data: creators } = await supabaseClient.from('profiles').select('*').eq('role', 'creator');
 
       if (!creators || creators.length === 0) {
         listContainer.innerHTML = '<p class="text-xs text-slate-500">अभी कोई क्रिएटर पंजीकृत नहीं है।</p>';
@@ -214,7 +266,8 @@
     }
 
     async function loadMessages() {
-      const { data: msgs } = await supabase.from('messages').select('*').order('created_at', { ascending: true }).limit(20);
+      if (!supabaseClient) return;
+      const { data: msgs } = await supabaseClient.from('messages').select('*').order('created_at', { ascending: true }).limit(20);
       renderMessages(msgs || []);
     }
 
@@ -233,19 +286,21 @@
     }
 
     async function sendMessage() {
+      if (!supabaseClient || !currentUser) return;
       const input = document.getElementById('chatInput');
       const msg = input.value.trim();
-      if (!msg || !currentUser) return;
+      if (!msg) return;
 
       input.value = '';
-      await supabase.from('messages').insert([
+      await supabaseClient.from('messages').insert([
         { sender_id: currentUser.id, receiver_id: currentUser.id, message: msg }
       ]);
       loadMessages();
     }
 
     function listenToMessages() {
-      supabase
+      if (!supabaseClient) return;
+      supabaseClient
         .channel('public:messages')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
           loadMessages();
@@ -253,6 +308,7 @@
         .subscribe();
     }
 
+    // शुरू में सेशन चेक करें
     checkSession();
   </script>
 </body>
