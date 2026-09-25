@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="hi" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Modelela - Creator Marketplace</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { -webkit-tap-highlight-color: transparent; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between font-sans select-none pb-20">
+
+  <!-- TOP HEADER -->
+  <header class="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80 px-4 py-3 flex justify-between items-center">
+    <div class="flex items-center space-x-2">
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center font-black text-slate-950 text-lg shadow-md shadow-amber-500/20">
+        M
+      </div>
+      <span class="font-extrabold text-lg tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-200">MODELELA</span>
+    </div>
+    <div class="flex items-center space-x-2">
+      <button id="logoutBtn" onclick="handleLogout()" class="hidden text-xs bg-slate-900 border border-red-500/30 text-red-400 hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition font-medium">
+        <i class="fa-solid fa-arrow-right-from-bracket mr-1"></i>Logout
+      </button>
+    </div>
+  </header>
+
+  <!-- AUTH MODAL / SCREEN (जब यूज़र लॉग इन न हो) -->
+  <div id="authSection" class="w-full max-w-md mx-auto my-auto p-4">
+    <div class="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl backdrop-blur-xl">
+      <div class="text-center mb-6">
+        <div class="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/20 text-amber-400 flex items-center justify-center mx-auto text-xl mb-2">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h2 id="authTitle" class="text-xl font-black text-white">लॉगिन करें</h2>
+        <p class="text-xs text-slate-400 mt-1">अपने क्रिएटर या बिज़नेस प्रोफाइल में प्रवेश करें</p>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-[11px] font-semibold tracking-wider text-slate-400 uppercase mb-1">Email</label>
+          <div class="relative">
+            <i class="fa-regular fa-envelope absolute left-3.5 top-3.5 text-slate-500 text-xs"></i>
+            <input type="email" id="email" placeholder="name@domain.com" class="w-full bg-slate-950/70 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-amber-400 transition">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold tracking-wider text-slate-400 uppercase mb-1">Password</label>
+          <div class="relative">
+            <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-slate-500 text-xs"></i>
+            <input type="password" id="password" placeholder="कम से कम 6 अक्षर" class="w-full bg-slate-950/70 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-amber-400 transition">
+          </div>
+        </div>
+
+        <!-- साइनअप फील्ड्स -->
+        <div id="signupFields" class="hidden space-y-4 pt-2 border-t border-slate-800">
+          <div>
+            <label class="block text-[11px] font-semibold tracking-wider text-slate-400 uppercase mb-1">पूरा नाम</label>
+            <input type="text" id="fullName" placeholder="Rahul Sharma" class="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-400">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold tracking-wider text-slate-400 uppercase mb-1">आप क्या हैं?</label>
+            <select id="userRole" class="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-400">
+              <option value="creator">Creator (इन्फ्लुएंसर / मॉडल)</option>
+              <option value="business">Business (ब्रांड / एजेंसी / स्पॉन्सर)</option>
+            </select>
+          </div>
+        </div>
+
+        <button id="authSubmitBtn" onclick="handleAuthAction()" class="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-extrabold py-3 rounded-xl shadow-lg shadow-amber-400/20 transition active:scale-[0.98]">
+          Login
+        </button>
+
+        <p class="text-center text-xs text-slate-400 mt-4">
+          <span id="switchPrompt">नया अकाउंट बनाना है?</span>
+          <button onclick="toggleAuthMode()" id="switchBtn" class="text-amber-400 font-bold underline ml-1 hover:text-amber-300">साइन अप करें</button>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER (Tabs) -->
+  <main id="appContainer" class="w-full max-w-md mx-auto p-4 flex-1 hidden">
+
+    <!-- TAB 1: EXPLORE / MARKETPLACE -->
+    <div id="tab-marketplace" class="tab-content space-y-4">
+      <div class="relative">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-500 text-xs"></i>
+        <input type="text" placeholder="क्रिएटर्स, निश या शहर खोजें..." class="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-9 pr-4 py-2.5 text-xs focus:outline-none focus:border-amber-400">
+      </div>
+
+      <div class="flex justify-between items-center pt-2">
+        <h3 class="text-sm font-bold text-white tracking-wide flex items-center gap-1.5">
+          <i class="fa-solid fa-users-viewfinder text-amber-400"></i> सक्रिय क्रिएटर्स
+        </h3>
+        <button onclick="loadMarketplace()" class="text-xs text-amber-400 hover:underline"><i class="fa-solid fa-rotate-right mr-1"></i>रिफ्रेश</button>
+      </div>
+
+      <div id="creatorsContainer" class="space-y-3">
+        <!-- डायनामिक क्रिएटर कार्ड यहाँ लोड होंगे -->
+      </div>
+    </div>
+
+    <!-- TAB 2: AI STUDIO -->
+    <div id="tab-ai" class="tab-content hidden space-y-4">
+      <div class="bg-gradient-to-br from-amber-500/10 via-slate-900 to-slate-900 border border-amber-500/20 rounded-3xl p-5">
+        <div class="flex items-center gap-2 mb-2 text-amber-400">
+          <i class="fa-solid fa-wand-magic-sparkles text-lg"></i>
+          <h3 class="font-extrabold text-base text-white">4-in-1 AI Creator Studio</h3>
+        </div>
+        <p class="text-xs text-slate-400">स्पॉन्सरशिप एड स्क्रिप्ट्स, ब्रांड स्लोगन्स और रील्स के आइडिया तुरंत जेनरेट करें।</p>
+      </div>
+
+      <div class="space-y-3 bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <label class="block text-xs font-semibold text-slate-300">ब्रांड या प्रोडक्ट का नाम</label>
+        <input type="text" id="aiBrandName" placeholder="उदा. Mamaearth, Boat, Zomato" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-amber-400">
+        
+        <label class="block text-xs font-semibold text-slate-300">आप क्या बनाना चाहते हैं?</label>
+        <select id="aiType" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-amber-400">
+          <option value="script">30-सेकंड रील एड स्क्रिप्ट (Instagram Reel)</option>
+          <option value="hook">5 वायरल हुक लाइन्स (Viral Hooks)</option>
+          <option value="slogan">ब्रांड स्लोगन और कॉल-टू-एक्शन</option>
+        </select>
+
+        <button onclick="generateAIContent()" class="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+          <i class="fa-solid fa-bolt"></i> Generate with AI
+        </button>
+      </div>
+
+      <div id="aiResultBox" class="hidden bg-slate-900 border border-amber-400/20 rounded-2xl p-4 space-y-2">
+        <p class="text-[10px] text-amber-400 uppercase font-bold tracking-wider">AI जनरेटेड रिजल्ट</p>
+        <div id="aiResultText" class="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed"></div>
+      </div>
+    </div>
+
+    <!-- TAB 3: DEALS & ESCROW -->
+    <div id="tab-deals" class="tab-content hidden space-y-4">
+      <div class="flex justify-between items-center">
+        <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+          <i class="fa-solid fa-handshake text-amber-400"></i> स्पॉन्सरशिप डील्स व एस्क्रो
+        </h3>
+        <button onclick="loadDeals()" class="text-xs text-amber-400 hover:underline"><i class="fa-solid fa-rotate-right mr-1"></i>रिफ्रेश</button>
+      </div>
+
+      <!-- नई डील बनाने का क्विक फॉर्म (Business Only) -->
+      <div id="createDealCard" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider">नई डील का एस्क्रो फंड करें</h4>
+        <input type="text" id="dealTitle" placeholder="डील का शीर्षक (उदा. 1 Instagram Reel)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-400">
+        <div class="flex gap-2">
+          <input type="number" id="dealAmount" oninput="calculateEscrowFee()" placeholder="कुल बजट (₹)" class="w-1/2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-400">
+          <select id="dealCreatorSelect" class="w-1/2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-400">
+            <option value="">क्रिएटर चुनें...</option>
+          </select>
+        </div>
+
+        <div id="escrowBreakdown" class="text-[11px] bg-slate-950 border border-slate-800/80 p-2.5 rounded-xl space-y-1 text-slate-400">
+          <div class="flex justify-between"><span>प्लेटफ़ॉर्म फीस (20%):</span> <span id="feePreview">₹0</span></div>
+          <div class="flex justify-between font-bold text-amber-400"><span>क्रिएटर पेआउट (80%):</span> <span id="payoutPreview">₹0</span></div>
+        </div>
+
+        <button onclick="submitNewDeal()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition">
+          🔒 डील लॉक करें (Create Escrow)
+        </button>
+      </div>
+
+      <div id="dealsContainer" class="space-y-3">
+        <!-- सक्रिय डील्स यहाँ लोड होंगी -->
+      </div>
+    </div>
+
+    <!-- TAB 4: REAL-TIME CHAT -->
+    <div id="tab-chat" class="tab-content hidden space-y-3">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex justify-between items-center">
+        <div>
+          <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
+            <i class="fa-solid fa-comments text-amber-400"></i> लाइव डायरेक्ट चैट
+          </h3>
+          <p class="text-[10px] text-slate-400">ब्रांड्स और क्रिएटर्स के बीच सुरक्षित संवाद</p>
+        </div>
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+      </div>
+
+      <div id="chatMessages" class="h-80 overflow-y-auto bg-slate-900/60 border border-slate-800 rounded-2xl p-3 space-y-2 text-xs no-scrollbar">
+        <p class="text-center text-slate-500 py-6">बातचीत लोड हो रही है...</p>
+      </div>
+
+      <div class="flex gap-2">
+        <input type="text" id="chatInput" placeholder="मेसेज लिखें..." class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-amber-400">
+        <button onclick="sendChatMessage()" class="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition">
+          <i class="fa-solid fa-paper-plane"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB 5: PROFILE & SETTINGS -->
+    <div id="tab-profile" class="tab-content hidden space-y-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-center relative overflow-hidden">
+        <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-amber-400 to-amber-200 text-slate-950 flex items-center justify-center font-black text-2xl mx-auto mb-2 border-2 border-slate-950 shadow-lg">
+          <span id="profileInitial">U</span>
+        </div>
+        <h3 id="profileNameDisplay" class="text-base font-bold text-white">उपयोगकर्ता</h3>
+        <p id="profileRoleBadge" class="inline-block mt-1 text-[10px] font-bold bg-amber-400/20 text-amber-400 border border-amber-400/30 px-2.5 py-0.5 rounded-full uppercase"></p>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider">प्रोफ़ाइल एडिट करें</h4>
+        
+        <div>
+          <label class="block text-[11px] text-slate-400 mb-1">बायो / निश (Niche)</label>
+          <input type="text" id="profileBio" placeholder="उदा. Fashion, Tech, Lifestyle" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-400">
+        </div>
+
+        <div id="creatorOnlyFields" class="space-y-3">
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">चार्ज प्रति डील (₹)</label>
+            <input type="number" id="profilePricing" placeholder="500" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-400">
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">पेमेंट UPI ID (पेआउट्स पाने के लिए)</label>
+            <input type="text" id="profileUpi" placeholder="name@upi" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-400">
+          </div>
+        </div>
+
+        <button onclick="saveProfileChanges()" class="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition">
+          सेव करें
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- BOTTOM NAVIGATION BAR (5 BUTTONS) -->
+  <nav id="bottomNav" class="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/90 backdrop-blur-lg border-t border-slate-800/80 px-2 py-2 flex justify-around items-center max-w-md mx-auto hidden">
+    <button onclick="switchTab('marketplace')" id="nav-marketplace" class="nav-btn flex flex-col items-center text-amber-400 py-1 px-2 transition">
+      <i class="fa-solid fa-compass text-base mb-1"></i>
+      <span class="text-[10px] font-medium">Explore</span>
+    </button>
+    <button onclick="switchTab('ai')" id="nav-ai" class="nav-btn flex flex-col items-center text-slate-400 hover:text-slate-200 py-1 px-2 transition">
+      <i class="fa-solid fa-wand-magic-sparkles text-base mb-1"></i>
+      <span class="text-[10px] font-medium">AI Studio</span>
+    </button>
+    <button onclick="switchTab('deals')" id="nav-deals" class="nav-btn flex flex-col items-center text-slate-400 hover:text-slate-200 py-1 px-2 transition">
+      <i class="fa-solid fa-handshake text-base mb-1"></i>
+      <span class="text-[10px] font-medium">Deals</span>
+    </button>
+    <button onclick="switchTab('chat')" id="nav-chat" class="nav-btn flex flex-col items-center text-slate-400 hover:text-slate-200 py-1 px-2 transition">
+      <i class="fa-solid fa-comments text-base mb-1"></i>
+      <span class="text-[10px] font-medium">Chat</span>
+    </button>
+    <button onclick="switchTab('profile')" id="nav-profile" class="nav-btn flex flex-col items-center text-slate-400 hover:text-slate-200 py-1 px-2 transition">
+      <i class="fa-solid fa-user text-base mb-1"></i>
+      <span class="text-[10px] font-medium">Profile</span>
+    </button>
+  </nav>
+
+  <!-- JAVASCRIPT & SUPABASE ENGINE -->
+  <script>
+    const SUPABASE_URL = "https://wusdenfidflzpekvncck.supabase.co";
+    const SUPABASE_ANON_KEY = " sb_publishable_yiAAP0mVLWeQb00Evr0XzA_Tj8mWSIp";
+
+    let supabaseClient = null;
+    let currentUser = null;
+    let currentProfile = null;
+    let isSignUp = false;
+
+    try {
+      if (window.supabase) {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    // 1. NAVIGATION TAB SWITCHING
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.nav-btn').forEach(el => {
+        el.classList.remove('text-amber-400');
+        el.classList.add('text-slate-400');
+      });
+
+      const activeContent = document.getElementById('tab-' + tabId);
+      const activeNav = document.getElementById('nav-' + tabId);
+      if (activeContent) activeContent.classList.remove('hidden');
+      if (activeNav) {
+        activeNav.classList.remove('text-slate-400');
+        activeNav.classList.add('text-amber-400');
+      }
+
+      if (tabId === 'marketplace') loadMarketplace();
+      if (tabId === 'deals') loadDeals();
+      if (tabId === 'chat') loadChat();
+    }
+
+    // 2. AUTHENTICATION (LOGIN & SIGNUP)
+    function toggleAuthMode() {
+      isSignUp = !isSignUp;
+      document.getElementById('authTitle').innerText = isSignUp ? 'नया अकाउंट बनाएं' : 'लॉगिन करें';
+      document.getElementById('signupFields').classList.toggle('hidden', !isSignUp);
+      document.getElementById('authSubmitBtn').innerText = isSignUp ? 'Sign Up' : 'Login';
+      document.getElementById('switchPrompt').innerText = isSignUp ? 'पहले से अकाउंट है?' : 'नया अकाउंट बनाना है?';
+      document.getElementById('switchBtn').innerText = isSignUp ? 'लॉगिन करें' : 'साइन अप करें';
+    }
+
+    async function handleAuthAction() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const btn = document.getElementById('authSubmitBtn');
+
+      if (!email || !password) return alert('कृपया ईमेल और पासवर्ड भरें');
+      if (password.length < 6) return alert('पासवर्ड 6 अक्षरों से बड़ा होना चाहिए');
+
+      btn.disabled = true;
+      btn.innerText = 'प्रतीक्षा करें...';
+
+      try {
+        if (isSignUp) {
+          const fullName = document.getElementById('fullName').value.trim();
+          const role = document.getElementById('userRole').value;
+          if (!fullName) throw new Error('कृपया अपना पूरा नाम लिखें');
+
+          const { data, error } = await supabaseClient.auth.signUp({ email, password });
+          if (error) throw error;
+
+          if (data?.user) {
+            await supabaseClient.from('profiles').insert([{
+              id: data.user.id,
+              full_name: fullName,
+              role: role,
+              pricing: role === 'creator' ? 500 : 0
+            }]);
+            alert('अकाउंट तैयार हो गया!');
+            await checkSession();
+          }
+        } else {
+          const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          await checkSession();
+        }
+      } catch (err) {
+        alert(err.message || 'त्रुटि हुई');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = isSignUp ? 'Sign Up' : 'Login';
+      }
+    }
+
+    async function handleLogout() {
+      await supabaseClient.auth.signOut();
+      checkSession();
+    }
+
+    async function checkSession() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      const authSec = document.getElementById('authSection');
+      const appCont = document.getElementById('appContainer');
+      const bottomNav = document.getElementById('bottomNav');
+      const logoutBtn = document.getElementById('logoutBtn');
+
+      if (session) {
+        currentUser = session.user;
+        authSec.classList.add('hidden');
+        appCont.classList.remove('hidden');
+        bottomNav.classList.remove('hidden');
+        logoutBtn.classList.remove('hidden');
+
+        const { data: prof } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
+        currentProfile = prof;
+
+        if (prof) {
+          document.getElementById('profileNameDisplay').innerText = prof.full_name;
+          document.getElementById('profileInitial').innerText = prof.full_name.charAt(0).toUpperCase();
+          document.getElementById('profileRoleBadge').innerText = prof.role;
+          document.getElementById('profileBio').value = prof.bio || '';
+          document.getElementById('profilePricing').value = prof.pricing || 0;
+          document.getElementById('profileUpi').value = prof.upi_id || '';
+        }
+
+        switchTab('marketplace');
+        listenToRealtime();
+      } else {
+        currentUser = null;
+        currentProfile = null;
+        authSec.classList.remove('hidden');
+        appCont.classList.add('hidden');
+        bottomNav.classList.add('hidden');
+        logoutBtn.classList.add('hidden');
+      }
+    }
+
+    // 3. TAB 1: MARKETPLACE
+    async function loadMarketplace() {
+      const container = document.getElementById('creatorsContainer');
+      const dealSelect = document.getElementById('dealCreatorSelect');
+      container.innerHTML = '<p class="text-xs text-slate-500 py-4 text-center">क्रिएटर्स लोड हो रहे हैं...</p>';
+
+      const { data: creators } = await supabaseClient.from('profiles').select('*').eq('role', 'creator');
+
+      if (!creators || creators.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">अभी कोई क्रिएटर लिस्ट नहीं है।</p>';
+        return;
+      }
+
+      dealSelect.innerHTML = '<option value="">क्रिएटर चुनें...</option>' + creators.map(c => `<option value="${c.id}">${c.full_name} (₹${c.pricing || 0})</option>`).join('');
+
+      container.innerHTML = creators.map(c => `
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex justify-between items-center shadow-md">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-full bg-amber-400/20 text-amber-400 flex items-center justify-center font-bold text-sm">
+              ${c.full_name.charAt(0)}
+            </div>
+            <div>
+              <h4 class="font-bold text-xs text-white">${c.full_name}</h4>
+              <p class="text-[11px] text-slate-400">${c.bio || 'Verified Influencer'}</p>
+              <span class="text-[10px] font-semibold text-amber-400">चार्ज: ₹${c.pricing || 0}</span>
+            </div>
+          </div>
+          <button onclick="quickOfferDeal('${c.id}')" class="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold px-3 py-1.5 rounded-xl text-xs transition">
+            Offer Deal
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function quickOfferDeal(creatorId) {
+      switchTab('deals');
+      document.getElementById('dealCreatorSelect').value = creatorId;
+    }
+
+    // 4. TAB 2: AI GENERATOR
+    function generateAIContent() {
+      const brand = document.getElementById('aiBrandName').value.trim();
+      const type = document.getElementById('aiType').value;
+      const resBox = document.getElementById('aiResultBox');
+      const resText = document.getElementById('aiResultText');
+
+      if (!brand) return alert('कृपया ब्रांड या प्रोडक्ट का नाम लिखें');
+
+      resBox.classList.remove('hidden');
+      if (type === 'script') {
+        resText.innerText = `[Scene: क्रिएटर कैमरा की तरफ देखकर उत्साह से बोलता है]\n\n"क्या आप भी अपनी दिनचर्या में बोर हो चुके हैं? हाल ही में मुझे मिला ${brand}!\n\n(Screen पर प्रोडक्ट दिखाते हुए):\nइसकी सबसे अच्छी बात है इसकी क्वालिटी और अफोर्डेबल प्राइस।\n\nअगर आप भी इसे ट्राय करना चाहते हैं, तो बायो में दिए लिंक पर क्लिक करें और कोड 'CREATOR20' यूज़ करें!"`;
+      } else if (type === 'hook') {
+        resText.innerText = `1. "गलती से भी ${brand} मत खरीदना, जब तक आप यह न जान लो..."\n2. "यह एक सीक्रेट टूल जो हर किसी के पास होना चाहिए: ${brand}!"\n3. "मैंने 7 दिनों तक ${brand} इस्तेमाल किया, और नतीजा चौंकाने वाला था..."\n4. "मार्केट में सब इसकी बात क्यों कर रहे हैं?"\n5. "Stop scrolling! अगर आप भी वैल्यू ढूंढ रहे हैं तो यह आपके लिए है।"`;
+      } else {
+        resText.innerText = `🔥 स्लोगन: "${brand} – आपकी सोच से भी बेहतर, हर दिन।"\n\n📌 कॉल टू एक्शन: "अभी ऑर्डर करें और पाएं 20% की छूट! लिंक बायो में है।"`;
+      }
+    }
+
+    // 5. TAB 3: DEALS & ESCROW
+    function calculateEscrowFee() {
+      const amt = parseFloat(document.getElementById('dealAmount').value) || 0;
+      const fee = Math.round(amt * 0.20);
+      const payout = amt - fee;
+      document.getElementById('feePreview').innerText = '₹' + fee;
+      document.getElementById('payoutPreview').innerText = '₹' + payout;
+    }
+
+    async function submitNewDeal() {
+      const title = document.getElementById('dealTitle').value.trim();
+      const amount = parseFloat(document.getElementById('dealAmount').value) || 0;
+      const creatorId = document.getElementById('dealCreatorSelect').value;
+
+      if (!title || !amount || !creatorId) return alert('कृपया सभी फील्ड्स भरें');
+
+      const fee = Math.round(amount * 0.20);
+      const payout = amount - fee;
+
+      const { error } = await supabaseClient.from('deals').insert([{
+        business_id: currentUser.id,
+        creator_id: creatorId,
+        title: title,
+        total_amount: amount,
+        platform_fee: fee,
+        creator_payout: payout,
+        status: 'escrow_funded'
+      }]);
+
+      if (error) return alert('डील सेव नहीं हुई: ' + error.message);
+      alert('डील एस्क्रो में सुरक्षित जमा कर दी गई!');
+      document.getElementById('dealTitle').value = '';
+      document.getElementById('dealAmount').value = '';
+      calculateEscrowFee();
+      loadDeals();
+    }
+
+    async function loadDeals() {
+      const container = document.getElementById('dealsContainer');
+      container.innerHTML = '<p class="text-xs text-slate-500 py-4 text-center">डील्स लोड हो रही हैं...</p>';
+
+      const { data: deals } = await supabaseClient.from('deals').select('*').order('created_at', { ascending: false });
+
+      if (!deals || deals.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-500 py-4 text-center">कोई सक्रिय डील नहीं है।</p>';
+        return;
+      }
+
+      container.innerHTML = deals.map(d => `
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-2">
+          <div class="flex justify-between items-start">
+            <div>
+              <h4 class="font-bold text-xs text-white">${d.title}</h4>
+              <p class="text-[10px] text-slate-400">कुल बजट: ₹${d.total_amount}</p>
+            </div>
+            <span class="text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase">${d.status}</span>
+          </div>
+          <div class="bg-slate-950 p-2 rounded-xl text-[10px] flex justify-between text-slate-400">
+            <span>20% प्लेटफ़ॉर्म कट: ₹${d.platform_fee}</span>
+            <span class="text-amber-400 font-bold">क्रिएटर पेआउट: ₹${d.creator_payout}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // 6. TAB 4: CHAT ENGINE
+    async function loadChat() {
+      const box = document.getElementById('chatMessages');
+      const { data: msgs } = await supabaseClient.from('messages').select('*').order('created_at', { ascending: true }).limit(30);
+
+      if (!msgs || msgs.length === 0) {
+        box.innerHTML = '<p class="text-slate-500 text-center py-8">कोई पुराना मेसेज नहीं है। चैट शुरू करें!</p>';
+        return;
+      }
+
+      box.innerHTML = msgs.map(m => `
+        <div class="flex flex-col ${m.sender_id === currentUser.id ? 'items-end' : 'items-start'}">
+          <div class="max-w-[80%] p-2.5 rounded-2xl ${m.sender_id === currentUser.id ? 'bg-amber-400 text-slate-950 rounded-br-none font-medium' : 'bg-slate-800 text-slate-200 rounded-bl-none'}">
+            ${m.message}
+          </div>
+        </div>
+      `).join('');
+      box.scrollTop = box.scrollHeight;
+    }
+
+    async function sendChatMessage() {
+      const input = document.getElementById('chatInput');
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      input.value = '';
+      await supabaseClient.from('messages').insert([{
+        sender_id: currentUser.id,
+        receiver_id: currentUser.id,
+        message: msg
+      }]);
+      loadChat();
+    }
+
+    // 7. TAB 5: PROFILE UPDATE
+    async function saveProfileChanges() {
+      const bio = document.getElementById('profileBio').value.trim();
+      const pricing = parseFloat(document.getElementById('profilePricing').value) || 0;
+      const upi = document.getElementById('profileUpi').value.trim();
+
+      const { error } = await supabaseClient.from('profiles').update({
+        bio: bio,
+        pricing: pricing,
+        upi_id: upi
+      }).eq('id', currentUser.id);
+
+      if (error) alert('एरर: ' + error.message);
+      else alert('प्रोफाइल सफलतापूर्वक अपडेट हो गई!');
+    }
+
+    // 8. REALTIME SUBSCRIPTION
+    function listenToRealtime() {
+      supabaseClient.channel('realtime_channel')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => loadChat())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'deals' }, () => loadDeals())
+        .subscribe();
+    }
+
+    // चेक सेशन ऑन लोड
+    checkSession();
+  </script>
+</body>
+</html>
